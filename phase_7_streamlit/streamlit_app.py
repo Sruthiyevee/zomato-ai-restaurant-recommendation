@@ -34,10 +34,9 @@ if PHASE_4_SRC not in sys.path:
 # Load .env explicitly
 if os.path.exists(ENV_PATH):
     load_dotenv(ENV_PATH)
-    # Debugging: Uncomment to verify
-    # st.write(f"Loaded .env from: {ENV_PATH}")
-else:
-    st.warning(f"⚠️ Environment file not found at: {ENV_PATH}")
+elif not os.getenv("GROQ_API_KEY") and "GROQ_API_KEY" not in st.secrets:
+    # Only warn if we don't have the key from secrets or env already
+    st.warning(f"⚠️ Environment file not found at: {ENV_PATH}. Ensure GROQ_API_KEY is set in Secrets.")
 
 # Import Core Components
 try:

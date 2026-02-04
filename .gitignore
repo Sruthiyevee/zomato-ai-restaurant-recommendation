@@ -5,4 +5,5 @@ data/
 *.csv
 *.json
 *.db
+!phase_1_data_ingestion/data/processed/zomato_restaurants.db
 !phase_7_streamlit/requirements.txt
