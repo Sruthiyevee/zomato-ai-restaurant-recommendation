@@ -1,0 +1,46 @@
+============================================================
+  BUILDING ZOMATO CLI EXECUTABLE
+============================================================
+
+METHOD 1: Using Batch Script (Easiest)
+---------------------------------------
+1. Double-click: build_exe_simple.bat
+2. Wait for build to complete
+3. Find the executable at: dist\ZomatoCLI.exe
+
+METHOD 2: Using Python Script
+------------------------------
+1. Open command prompt in this directory
+2. Run: python build_exe.py
+3. Find the executable at: dist\ZomatoCLI.exe
+
+METHOD 3: Manual PyInstaller Command
+-------------------------------------
+1. Install PyInstaller:
+   pip install pyinstaller
+
+2. Run PyInstaller:
+   pyinstaller --onefile --console --name ZomatoCLI --add-data "src;src" --hidden-import validator --hidden-import cli_handler --hidden-import session_manager zomato_cli_standalone.py
+
+3. Find the executable at: dist\ZomatoCLI.exe
+
+REQUIREMENTS
+------------
+- Python 3.7 or higher
+- PyInstaller (will be installed automatically)
+
+OUTPUT
+------
+After building, you'll find:
+- ZomatoCLI.exe in the dist\ folder
+- You can run this .exe file on any Windows computer without Python installed!
+
+TROUBLESHOOTING
+---------------
+If build fails:
+1. Make sure Python is installed and in PATH
+2. Try: python -m pip install --upgrade pyinstaller
+3. Check that all files in src\ folder exist
+4. Run the batch script as Administrator if needed
+
+============================================================

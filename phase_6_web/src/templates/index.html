@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zomato AI Recommendations</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Hero Section -->
+        <header class="hero">
+            <h1>Zomato AI Restaurant Recommendations</h1>
+            <p>Discover your next favorite dining spot with AI-powered insights.</p>
+        </header>
+
+        <!-- Search Section -->
+        <section class="search-panel">
+            <div class="form-group">
+                <label for="city-input">Select City</label>
+                <select id="city-input">
+                    <option value="" disabled selected>Choose a city...</option>
+                    <!-- Populated by JS -->
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Price Range</label>
+                <div class="price-options" id="price-options">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <button id="search-btn" class="primary-btn">Get Recommendations</button>
+            <div id="error-msg" class="error-msg"></div>
+        </section>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Asking the AI for the best spots...</p>
+        </div>
+
+        <!-- Results Section -->
+        <section id="results" class="results-grid">
+            <!-- Recommendations will appear here -->
+        </section>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>
