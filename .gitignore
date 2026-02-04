@@ -1,0 +1,8 @@
+
+# Data
+phase_1_data_ingestion/data/
+data/
+*.csv
+*.json
+*.db
+!phase_7_streamlit/requirements.txt

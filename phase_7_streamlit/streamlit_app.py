@@ -13,44 +13,90 @@ st.set_page_config(
 
 # Load Environment Variables
 # We need to load from phase_4_recommendation/.env
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+# Load Environment Variables & Paths
+# -----------------------------------------------------------------------------
+# Ensure we have the correct project root regardless of where streamlit is run
+current_dir = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(current_dir, '..'))
+
+# Critical Paths
 ENV_PATH = os.path.join(PROJECT_ROOT, 'phase_4_recommendation', '.env')
-
-if os.path.exists(ENV_PATH):
-    load_dotenv(ENV_PATH)
-else:
-    st.warning("Environment file (.env) not found in phase_4_recommendation. Application might not work correctly.")
-
-# Add Component Source Paths
+DB_PATH = os.path.join(PROJECT_ROOT, 'phase_1_data_ingestion', 'data', 'processed', 'zomato_restaurants.db')
 PHASE_1_SRC = os.path.join(PROJECT_ROOT, 'phase_1_data_ingestion', 'src')
 PHASE_4_SRC = os.path.join(PROJECT_ROOT, 'phase_4_recommendation', 'src')
 
+# Add Source Paths to System Path
 if PHASE_1_SRC not in sys.path:
     sys.path.append(PHASE_1_SRC)
 if PHASE_4_SRC not in sys.path:
     sys.path.append(PHASE_4_SRC)
 
+# Load .env explicitly
+if os.path.exists(ENV_PATH):
+    load_dotenv(ENV_PATH)
+    # Debugging: Uncomment to verify
+    # st.write(f"Loaded .env from: {ENV_PATH}")
+else:
+    st.warning(f"⚠️ Environment file not found at: {ENV_PATH}")
+
 # Import Core Components
 try:
     from storage import ZomatoDataStorage
     from recommendation_engine import RecommendationEngine
+    from groq_client import GroqClient
 except ImportError as e:
-    st.error(f"Failed to import core components: {e}")
+    st.error(f"❌ Failed to import core components: {e}")
+    st.code(f"Sys Path: {sys.path}", language="text")
     st.stop()
 
-# Initialize Global Components
+# --- Initialization Functions ---
+
 @st.cache_resource
-def get_engine():
-    return RecommendationEngine()
+def get_engine(api_key: str = None):
+    """
+    Initialize the recommendation engine with the best available API key.
+    Priority:
+    1. Key provided in arguments (User Input)
+    2. Key in Streamlit Secrets
+    3. Key in Environment Variables (.env)
+    """
+    # Resolve API Key
+    final_api_key = api_key
+    
+    if not final_api_key:
+        # Check Secrets
+        if "GROQ_API_KEY" in st.secrets:
+            final_api_key = st.secrets["GROQ_API_KEY"]
+        
+    if not final_api_key:
+        # Check Environment (loaded via dotenv)
+        final_api_key = os.getenv("GROQ_API_KEY")
+        
+    # Initialize Engine
+    try:
+        if final_api_key:
+            client = GroqClient(api_key=final_api_key)
+            return RecommendationEngine(groq_client=client)
+        else:
+            # Fallback (might fail if env var is missing too, handled by Engine)
+            return RecommendationEngine()
+    except Exception as e:
+        # Return None or raise to be handled by caller
+        raise e
 
 @st.cache_resource
 def get_storage():
-    return ZomatoDataStorage()
+    """Initialize storage with absolute DB path"""
+    return ZomatoDataStorage(db_path=DB_PATH)
 
 @st.cache_data
 def load_data():
     storage = get_storage()
     try:
+        # Verify DB exists first
+        if not os.path.exists(DB_PATH):
+            return None, f"Database file not found at: {DB_PATH}"
+
         df = storage.load_from_db()
         if df.empty:
             return None, "Database is empty."
@@ -77,9 +123,32 @@ def load_data():
 st.title("🍽️ Zomato AI Restaurant Recommendation")
 st.markdown("Find the best restaurants tailored to your preferences using AI.")
 
-# Sidebar for Filters
+# Sidebar for Preferences & Settings
 with st.sidebar:
-    st.header("Preferences")
+    st.header("⚙️ Settings")
+    
+    # 1. API Key Input
+    # Check if we have a key from secrets or env to show status
+    has_env_key = os.getenv("GROQ_API_KEY") is not None
+    has_secret_key = "GROQ_API_KEY" in st.secrets
+    
+    api_key_input = st.text_input(
+        "Groq API Key",
+        type="password",
+        help="Enter your Groq API Key here. Leave empty to use system defaults.",
+        placeholder="gsk_..."
+    )
+    
+    if not api_key_input and not has_env_key and not has_secret_key:
+        st.warning("⚠️ No API Key found! Please enter one.")
+    elif api_key_input:
+        st.success("Key provided via input.")
+    else:
+        st.info("Using system/env key.")
+
+    st.divider()
+    
+    st.header("🔎 Preferences")
     
     # Load Data
     restaurants_data, error = load_data()
@@ -96,11 +165,7 @@ with st.sidebar:
     cities = sorted(list(set(r.get('city', 'Unknown') for r in restaurants_data)))
     selected_city = st.selectbox("Select City", cities)
     
-    # Price Range Selection
-    # Extract available price ranges or hardcode common ones
-    # available_prices = sorted(list(set(r.get('price_range', 'Unknown') for r in restaurants_data)))
-    # For better UX, let's use standard ranges but verifying against data is good practice.
-    # We will use hardcoded for better UI consistency as per Main.py
+    # Price Range
     price_ranges = ["Budget", "Mid-Range", "Premium", "Luxury"]
     selected_price = st.selectbox("Price Range", price_ranges)
     
@@ -108,10 +173,11 @@ with st.sidebar:
 
 # Main Content Area
 if generate_btn:
-    engine = get_engine()
-    
-    with st.spinner(f"Finding the best {selected_price} restaurants in {selected_city}..."):
-        try:
+    try:
+        # Initialize engine with the user input key (if any)
+        engine = get_engine(api_key=api_key_input)
+        
+        with st.spinner(f"Finding the best {selected_price} restaurants in {selected_city}..."):
             success, recommendations, error_msg = engine.generate_recommendations(
                 restaurants=restaurants_data,
                 city=selected_city,
@@ -139,13 +205,13 @@ if generate_btn:
                             reasoning = rec.get('reasoning') or rec.get('key_highlights')
                             if reasoning:
                                 st.info(f"Why this? {reasoning}")
-                                
+                        
                         st.divider()
             else:
                 st.error(f"Could not generate recommendations: {error_msg}")
                 
-        except Exception as e:
-            st.error(f"An error occurred: {str(e)}")
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
 
 else:
     # Initial State / Instructions
